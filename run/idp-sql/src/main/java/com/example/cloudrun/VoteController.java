@@ -21,6 +21,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.FirebaseToken;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -31,6 +35,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -49,14 +54,14 @@ public final class VoteController {
 
   @GetMapping("/")
   public String index(Model model) {
-    try{
+    try {
       // Query the total count of "CATS" from the database.
       int catVotes = getVoteCount("CATS");
       // Query the total count of "DOGS" from the database.
       int dogVotes = getVoteCount("DOGS");
       // Query the last 5 votes from the database.
       List<Vote> votes = getVotes();
-  
+
       // Calculate and set leader values.
       String leadTeam;
       String leaderMessage;
@@ -83,16 +88,17 @@ public final class VoteController {
       model.addAttribute("votes", votes);
     } catch (DataAccessException e) {
       logger.error("error while attempting to get vote: " + e.toString());
-      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to load page; see logs for more details.", e);
+      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+          "Unable to load page; see logs for more details.", e);
     }
     return "index";
   }
 
   @PostMapping("/")
   @ResponseBody
-  public String vote(@RequestParam Map<String, String> body) {
+  public String vote(@RequestHeader Map<String, String> headers, @RequestParam Map<String, String> body) {
     // Get decoded Id Platform user id
-    String uid = "test";
+    String uid = authenticateJwt(headers);
     // Get the team from the request and record the time of the vote.
     String team = body.get("team");
     Date date = new Date();
@@ -109,11 +115,34 @@ public final class VoteController {
     try {
       insertVote(vote);
       logger.info("vote inserted: " + vote.toString());
-    } catch(DataAccessException e) {
+    } catch (DataAccessException e) {
       logger.error("error while attempting to submit vote: " + e.toString());
-      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to cast vote; see logs for more details.", e);
+      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+          "Unable to cast vote; see logs for more details.", e);
     }
     return "Successfully voted for " + team + " at " + timestamp.toLocalDateTime();
+  }
+
+  // Extract and verify Id Token from header
+  private String authenticateJwt(Map<String, String> headers) {
+    String authHeader = headers.get("authorization");
+    if (authHeader != null) {
+      String idToken = authHeader.split(" ")[1];
+      logger.info(idToken);
+      // If the provided ID token has the correct format, is not expired, and is
+      // properly signed, the method returns the decoded ID token
+      try {
+        FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
+        String uid = decodedToken.getUid();
+        return uid;
+      } catch (FirebaseAuthException e) {
+        logger.error("error with authentication: " + e.toString());
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "", e);
+      }
+    } else {
+      logger.error("error no authorization header");
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+    }
   }
 
   /**

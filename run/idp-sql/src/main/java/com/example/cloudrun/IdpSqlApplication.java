@@ -16,6 +16,14 @@
 
 package com.example.cloudrun;
 
+import java.io.IOException;
+
+import com.google.cloud.secretmanager.v1.AccessSecretVersionResponse;
+import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
+import com.google.firebase.FirebaseApp;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -23,7 +31,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class IdpSqlApplication {
 
 	public static void main(String[] args) {
+		FirebaseApp.initializeApp();
 		SpringApplication.run(IdpSqlApplication.class, args);
 	}
-
 }
