@@ -17,7 +17,9 @@
 package com.example.cloudrun;
 
 // [START run_events_pubsub_handler]
-import com.example.cloudrun.eventpojos.PubSubBody;
+// import com.example.cloudrun.eventpojos.PubSubBody;
+import com.google.events.cloud.pubsub.v1.MessagePublishedData;
+import com.google.events.cloud.pubsub.v1.PubsubMessage;
 import java.util.Base64;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
@@ -33,9 +35,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class EventController {
   @RequestMapping(value = "/", method = RequestMethod.POST)
   public ResponseEntity<String> receiveMessage(
-      @RequestBody PubSubBody body, @RequestHeader Map<String, String> headers) {
+      @RequestBody MessagePublishedData body, @RequestHeader Map<String, String> headers) {
     // Get PubSub message from request body.
-    PubSubBody.PubSubMessage message = body.getMessage();
+    PubsubMessage message = body.getMessage();
     if (message == null) {
       String msg = "No Pub/Sub message received.";
       System.out.println(msg);
